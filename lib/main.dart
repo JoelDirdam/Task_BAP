@@ -26,6 +26,7 @@ class MyApp extends StatelessWidget {
       ) {
         return MaterialApp(
           title: 'Task BAP',
+          debugShowCheckedModeBanner: false,
           theme: ThemeData(
             primarySwatch: Colors.blue,
           ),

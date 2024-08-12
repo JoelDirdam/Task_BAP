@@ -1,5 +1,8 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:task_bap/helpers/helper.dart';
 
 class TaskListScreen extends StatefulWidget {
   const TaskListScreen({super.key});
@@ -25,8 +28,12 @@ class _TaskListScreenState extends State<TaskListScreen>
     }
   ];
 
-  IconData _prefixIcon = Icons.add;
-  bool _showSuffixIcons = false;
+  IconData prefixIcon = Icons.add;
+  bool showSuffixIcons = false;
+  DateTime? selectedDate;
+  String? comment;
+  String? description;
+  List<String>? tags;
 
   @override
   void initState() {
@@ -44,24 +51,21 @@ class _TaskListScreenState extends State<TaskListScreen>
   void didChangeMetrics() {
     final bottomInset = WidgetsBinding.instance.window.viewInsets.bottom;
     if (bottomInset > 0.0) {
-      // Teclado se ha abierto
       _togglePrefixIcon();
     } else {
-      // Teclado se ha cerrado
       _togglePrefixIcon();
     }
   }
 
   void _togglePrefixIcon() {
     setState(() {
-      _prefixIcon =
-          _prefixIcon == Icons.add ? Icons.circle_outlined : Icons.add;
+      prefixIcon = prefixIcon == Icons.add ? Icons.circle_outlined : Icons.add;
     });
   }
 
   void _onTextChanged(String text) {
     setState(() {
-      _showSuffixIcons = text.isNotEmpty;
+      showSuffixIcons = text.isNotEmpty;
     });
   }
 
@@ -70,9 +74,9 @@ class _TaskListScreenState extends State<TaskListScreen>
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color.fromARGB(255, 230, 230, 230),
-        title: const Text(
-          'Task BAP',
-          style: TextStyle(color: Colors.deepPurpleAccent),
+        title: Image.asset(
+          'lib/assets/images/taskBAP.png',
+          width: 90.w,
         ),
         actions: const [
           IconButton(
@@ -87,7 +91,7 @@ class _TaskListScreenState extends State<TaskListScreen>
           itemCount: tasks.length,
           itemBuilder: (context, index) {
             return Card(
-              color: Colors.deepPurple[900],
+              color: const Color.fromARGB(255, 189, 179, 238),
               child: ListTile(
                 leading: Container(
                   constraints: BoxConstraints.expand(width: 10.w),
@@ -95,24 +99,20 @@ class _TaskListScreenState extends State<TaskListScreen>
                     tasks[index]['is_completed'] == 1
                         ? Icons.check_circle_outline
                         : Icons.circle_outlined,
-                    color: Colors.white,
                   ),
                 ),
                 title: Text(
                   tasks[index]['title'],
-                  style: const TextStyle(color: Colors.white),
                 ),
                 subtitle: Row(
                   children: [
                     Icon(
                       Icons.calendar_today,
-                      color: Colors.white54,
                       size: 12.w,
                     ),
                     const SizedBox(width: 4),
                     Text(
                       '${tasks[index]['due_date']}',
-                      style: const TextStyle(color: Colors.white54),
                     ),
                   ],
                 ),
@@ -121,12 +121,12 @@ class _TaskListScreenState extends State<TaskListScreen>
           },
         ),
       ),
-      backgroundColor: const Color.fromARGB(255, 206, 206, 206),
+      backgroundColor: const Color.fromARGB(255, 226, 226, 226),
       bottomSheet: BottomSheet(
         onClosing: () {},
         builder: (context) {
           return Container(
-            color: const Color.fromARGB(255, 206, 206, 206),
+            color: const Color.fromARGB(255, 226, 226, 226),
             child: Padding(
               padding: EdgeInsets.all(16.w),
               child: TextField(
@@ -134,50 +134,83 @@ class _TaskListScreenState extends State<TaskListScreen>
                 onEditingComplete: () {
                   print('Tarea agregada');
                 },
-                cursorColor: Colors.white,
-                style: const TextStyle(
-                  color: Colors.white,
-                ),
+                cursorColor: Colors.black,
                 decoration: InputDecoration(
                   filled: true,
-                  fillColor: Colors.deepPurple[900],
+                  fillColor: const Color.fromARGB(255, 189, 179, 238),
                   hintText: 'Agregar una tarea',
-                  hintStyle: const TextStyle(color: Colors.white),
+                  hintStyle: const TextStyle(color: Colors.black54),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(4.r),
                     borderSide: BorderSide.none,
                   ),
-                  prefixIcon: Icon(_prefixIcon, color: Colors.white),
-                  suffixIcon: _showSuffixIcons
+                  prefixIcon: Icon(prefixIcon, color: Colors.black54),
+                  suffixIcon: showSuffixIcons
                       ? Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
                               icon: Icon(Icons.calendar_today,
-                                  color: Colors.white, size: 14.w),
+                                  color: selectedDate != null
+                                      ? Colors.black54
+                                      : Colors.black12,
+                                  size: 14.w),
                               onPressed: () {
-                                // Acción para la fecha
+                                _selectDate(context);
                               },
                             ),
                             IconButton(
                               icon: Icon(Icons.comment,
-                                  color: Colors.white, size: 14.w),
+                                  color: comment != null && comment!.isNotEmpty
+                                      ? Colors.black54
+                                      : Colors.black12,
+                                  size: 14.w),
                               onPressed: () {
-                                // Acción para los comentarios
+                                showTextDialog(
+                                        context,
+                                        comment,
+                                        'Agregar Comentario',
+                                        'Escribe tu comentario aquí...')
+                                    .then((value) {
+                                  setState(() {
+                                    log('Comentario: $value');
+                                    comment =
+                                        value; // Actualizar el comentario con el valor devuelto
+                                  });
+                                });
                               },
                             ),
                             IconButton(
                               icon: Icon(Icons.description,
-                                  color: Colors.white, size: 14.w),
+                                  color: Colors.black12, size: 14.w),
                               onPressed: () {
-                                // Acción para la descripción
+                                showTextDialog(
+                                        context,
+                                        description,
+                                        'Agregar Descripción',
+                                        'Escribe tu descripción aquí...')
+                                    .then((value) {
+                                  setState(() {
+                                    log('Comentario: $value');
+                                    description =
+                                        value; // Actualizar el comentario con el valor devuelto
+                                  });
+                                });
                               },
                             ),
                             IconButton(
                               icon: Icon(Icons.label,
-                                  color: Colors.white, size: 14.w),
+                                  color: tags != null && tags!.isNotEmpty
+                                      ? Colors.black54
+                                      : Colors.black12,
+                                  size: 14.w),
                               onPressed: () {
-                                // Acción para los tags
+                                showTagsDialog(context, tags).then((value) {
+                                  setState(() {
+                                    tags = value;
+                                    print('Tags: ${tags?.join(', ')}');
+                                  });
+                                });
                               },
                             ),
                           ],
@@ -190,5 +223,31 @@ class _TaskListScreenState extends State<TaskListScreen>
         },
       ),
     );
+  }
+
+  Future<void> _selectDate(BuildContext context) async {
+    DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: selectedDate ?? DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+      builder: (BuildContext context, Widget? child) {
+        return Theme(
+          data: ThemeData.light().copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color.fromARGB(255, 189, 179, 238),
+              onPrimary: Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (pickedDate != null && pickedDate != selectedDate) {
+      setState(() {
+        selectedDate = pickedDate;
+      });
+    }
   }
 }
