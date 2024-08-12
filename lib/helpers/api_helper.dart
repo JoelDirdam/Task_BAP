@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:task_bap/builder/api_builder.dart';
 
 enum ApiEndpoints {
@@ -26,14 +28,14 @@ class Api {
     }
   }
 
-  static Future<ApiResponse> callApi(ApiEndpoints endpoint, dynamic params,
-      {Map<String, String>? headers}) async {
+  static Future<ApiResponse> callApi(
+      ApiEndpoints endpoint, dynamic params) async {
     ApiCallBuilder apiCallBuilder = ApiCallBuilder();
 
     String? taskId = params['task_id'] ?? null;
     apiCallBuilder.action = getEndpoint(endpoint, taskId);
     apiCallBuilder.params = params;
-    apiCallBuilder.headers = headers;
+    apiCallBuilder.endpoint = endpoint; // Asegúrate de asignar el endpoint
 
     ApiCall apiCall = apiCallBuilder.build();
     final response =

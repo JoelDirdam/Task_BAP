@@ -6,7 +6,7 @@ import 'screens/task_list_screen.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Cargar las variables de entorno
-  //await dotenv.load(fileName: '.env');
+  await dotenv.load(fileName: '.env');
 
   runApp(
     const MyApp(),

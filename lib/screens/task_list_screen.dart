@@ -1,8 +1,13 @@
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:intl/intl.dart';
+import 'package:task_bap/blocs/bloc/task_list_bloc.dart';
 import 'package:task_bap/helpers/helper.dart';
+import 'package:task_bap/widgets/custom_scaffold_widget.dart';
+import 'package:task_bap/widgets/task_edit_drawer_widget.dart';
 
 class TaskListScreen extends StatefulWidget {
   const TaskListScreen({super.key});
@@ -13,26 +18,16 @@ class TaskListScreen extends StatefulWidget {
 
 class _TaskListScreenState extends State<TaskListScreen>
     with WidgetsBindingObserver {
-  final List<Map<String, dynamic>> tasks = [
-    {
-      "id": 2272,
-      "title": "Esto es una prueba",
-      "is_completed": 0,
-      "due_date": "2024-08-10"
-    },
-    {
-      "id": 2273,
-      "title": "Esto es otra prueba",
-      "is_completed": 0,
-      "due_date": "2024-08-10"
-    }
-  ];
+  List<dynamic> tasks = [];
 
   IconData prefixIcon = Icons.add;
   bool showSuffixIcons = false;
+  final TextEditingController _titleTaskController = TextEditingController();
+  final TextEditingController _selectedDateController = TextEditingController();
+  final TextEditingController _commentController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
+  final TextEditingController _tagsController = TextEditingController();
   DateTime? selectedDate;
-  String? comment;
-  String? description;
   List<String>? tags;
 
   @override
@@ -71,161 +66,228 @@ class _TaskListScreenState extends State<TaskListScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color.fromARGB(255, 230, 230, 230),
-        title: Image.asset(
-          'lib/assets/images/taskBAP.png',
-          width: 90.w,
-        ),
-        actions: const [
-          IconButton(
-            icon: Icon(Icons.view_headline, color: Colors.deepPurpleAccent),
-            onPressed: null,
-          ),
-        ],
-      ),
-      body: Padding(
-        padding: EdgeInsets.all(16.w),
-        child: ListView.builder(
-          itemCount: tasks.length,
-          itemBuilder: (context, index) {
-            return Card(
-              color: const Color.fromARGB(255, 189, 179, 238),
-              child: ListTile(
-                leading: Container(
-                  constraints: BoxConstraints.expand(width: 10.w),
-                  child: Icon(
-                    tasks[index]['is_completed'] == 1
-                        ? Icons.check_circle_outline
-                        : Icons.circle_outlined,
-                  ),
-                ),
-                title: Text(
-                  tasks[index]['title'],
-                ),
-                subtitle: Row(
-                  children: [
-                    Icon(
-                      Icons.calendar_today,
-                      size: 12.w,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${tasks[index]['due_date']}',
+    return BlocProvider(
+      create: (context) => TaskListBloc()..add(GetTasksEvent()),
+      child: BlocListener<TaskListBloc, TaskListState>(
+        listener: (context, state) {
+          if (state is GetTasksSuccess) {
+            setState(() {
+              tasks = state.tasks;
+            });
+          } else if (state is CreateTaskSuccess) {
+            BlocProvider.of<TaskListBloc>(context).add(GetTasksEvent());
+            selectedDate = null;
+            _titleTaskController.clear();
+            _selectedDateController.clear();
+            _commentController.clear();
+            _descriptionController.clear();
+            _tagsController.clear();
+          } else if (state is UpdateTaskSuccess) {
+            BlocProvider.of<TaskListBloc>(context).add(GetTasksEvent());
+          } else if (state is DeleteTaskSuccess) {
+            BlocProvider.of<TaskListBloc>(context).add(GetTasksEvent());
+          } else if (state is TaskListError) {
+            BlocProvider.of<TaskListBloc>(context).add(GetTasksEvent());
+            showDialog(
+              context: context,
+              builder: (context) {
+                return AlertDialog(
+                  title: const Text('Error'),
+                  content: Text(state.message),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                      child: const Text('OK'),
                     ),
                   ],
-                ),
-              ),
+                );
+              },
             );
-          },
-        ),
-      ),
-      backgroundColor: const Color.fromARGB(255, 226, 226, 226),
-      bottomSheet: BottomSheet(
-        onClosing: () {},
-        builder: (context) {
-          return Container(
-            color: const Color.fromARGB(255, 226, 226, 226),
-            child: Padding(
-              padding: EdgeInsets.all(16.w),
-              child: TextField(
-                onChanged: _onTextChanged,
-                onEditingComplete: () {
-                  print('Tarea agregada');
-                },
-                cursorColor: Colors.black,
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: const Color.fromARGB(255, 189, 179, 238),
-                  hintText: 'Agregar una tarea',
-                  hintStyle: const TextStyle(color: Colors.black54),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(4.r),
-                    borderSide: BorderSide.none,
-                  ),
-                  prefixIcon: Icon(prefixIcon, color: Colors.black54),
-                  suffixIcon: showSuffixIcons
-                      ? Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: Icon(Icons.calendar_today,
-                                  color: selectedDate != null
-                                      ? Colors.black54
-                                      : Colors.black12,
-                                  size: 14.w),
-                              onPressed: () {
-                                _selectDate(context);
-                              },
-                            ),
-                            IconButton(
-                              icon: Icon(Icons.comment,
-                                  color: comment != null && comment!.isNotEmpty
-                                      ? Colors.black54
-                                      : Colors.black12,
-                                  size: 14.w),
-                              onPressed: () {
-                                showTextDialog(
-                                        context,
-                                        comment,
-                                        'Agregar Comentario',
-                                        'Escribe tu comentario aquí...')
-                                    .then((value) {
-                                  setState(() {
-                                    log('Comentario: $value');
-                                    comment =
-                                        value; // Actualizar el comentario con el valor devuelto
-                                  });
-                                });
-                              },
-                            ),
-                            IconButton(
-                              icon: Icon(Icons.description,
-                                  color: Colors.black12, size: 14.w),
-                              onPressed: () {
-                                showTextDialog(
-                                        context,
-                                        description,
-                                        'Agregar Descripción',
-                                        'Escribe tu descripción aquí...')
-                                    .then((value) {
-                                  setState(() {
-                                    log('Comentario: $value');
-                                    description =
-                                        value; // Actualizar el comentario con el valor devuelto
-                                  });
-                                });
-                              },
-                            ),
-                            IconButton(
-                              icon: Icon(Icons.label,
-                                  color: tags != null && tags!.isNotEmpty
-                                      ? Colors.black54
-                                      : Colors.black12,
-                                  size: 14.w),
-                              onPressed: () {
-                                showTagsDialog(context, tags).then((value) {
-                                  setState(() {
-                                    tags = value;
-                                    print('Tags: ${tags?.join(', ')}');
-                                  });
-                                });
-                              },
-                            ),
-                          ],
-                        )
-                      : null,
-                ),
-              ),
-            ),
-          );
+          }
         },
+        child: CustomScaffoldWidget(
+          body: Padding(
+            padding: EdgeInsets.all(16.w),
+            child: BlocBuilder<TaskListBloc, TaskListState>(
+              builder: (context, state) {
+                if (state is TaskListLoading) {
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                    ),
+                  );
+                } else if (state is GetTasksSuccess) {
+                  return ListView.builder(
+                    itemCount: tasks.length,
+                    itemBuilder: (context, index) {
+                      return Card(
+                        color: const Color.fromARGB(255, 189, 179, 238),
+                        child: ListTile(
+                          leading: Container(
+                            constraints: BoxConstraints.expand(width: 10.w),
+                            child: Icon(
+                              tasks[index]['is_completed'] == 1
+                                  ? Icons.check_circle_outline
+                                  : Icons.circle_outlined,
+                            ),
+                          ),
+                          title: GestureDetector(
+                            onTap: () {
+                              log('Task ID: ${tasks[index]['id']}');
+                              showDialog(
+                                context: context,
+                                builder: (context) {
+                                  return TaskEditPopup(
+                                    taskId: tasks[index]['id'].toString(),
+                                  );
+                                },
+                              );
+                            },
+                            child: Text(
+                              tasks[index]['title'],
+                            ),
+                          ),
+                          subtitle: Row(
+                            children: [
+                              Icon(
+                                Icons.calendar_today,
+                                size: 12.w,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${tasks[index]['due_date']}',
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                }
+                return Container();
+              },
+            ),
+          ),
+          bottomSheet: BottomSheet(
+            onClosing: () {},
+            builder: (context) {
+              return Container(
+                color: const Color.fromARGB(255, 226, 226, 226),
+                child: Padding(
+                  padding: EdgeInsets.all(16.w),
+                  child: TextField(
+                    onChanged: _onTextChanged,
+                    controller: _titleTaskController,
+                    onEditingComplete: () {
+                      BlocProvider.of<TaskListBloc>(context).add(
+                        CreateTaskEvent(
+                          title: _titleTaskController.text,
+                          description: _descriptionController.text,
+                          comment: _commentController.text,
+                          tags: tags?.join(','),
+                          selectedDate: _selectedDateController.text,
+                        ),
+                      );
+                    },
+                    cursorColor: Colors.black,
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: const Color.fromARGB(255, 189, 179, 238),
+                      hintText: 'Agregar una tarea',
+                      hintStyle: const TextStyle(color: Colors.black54),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(4.r),
+                        borderSide: BorderSide.none,
+                      ),
+                      prefixIcon: Icon(prefixIcon, color: Colors.black54),
+                      suffixIcon: showSuffixIcons
+                          ? Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: Icon(Icons.calendar_today,
+                                      color: _selectedDateController
+                                              .text.isNotEmpty
+                                          ? Colors.black54
+                                          : Colors.black12,
+                                      size: 14.w),
+                                  onPressed: () {
+                                    _selectDate(context);
+                                  },
+                                ),
+                                IconButton(
+                                  icon: Icon(Icons.comment,
+                                      color: _commentController.text.isNotEmpty
+                                          ? Colors.black54
+                                          : Colors.black12,
+                                      size: 14.w),
+                                  onPressed: () {
+                                    showTextDialog(
+                                            context,
+                                            _commentController.text,
+                                            'Agregar Comentario',
+                                            'Escribe tu comentario aquí...')
+                                        .then((value) {
+                                      setState(() {
+                                        _commentController.text = value ?? '';
+                                      });
+                                    });
+                                  },
+                                ),
+                                IconButton(
+                                  icon: Icon(Icons.description,
+                                      color:
+                                          _descriptionController.text.isNotEmpty
+                                              ? Colors.black54
+                                              : Colors.black12,
+                                      size: 14.w),
+                                  onPressed: () {
+                                    showTextDialog(
+                                            context,
+                                            _descriptionController.text,
+                                            'Agregar Descripción',
+                                            'Escribe tu descripción aquí...')
+                                        .then((value) {
+                                      setState(() {
+                                        _descriptionController.text =
+                                            value ?? '';
+                                      });
+                                    });
+                                  },
+                                ),
+                                IconButton(
+                                  icon: Icon(Icons.label,
+                                      color: _tagsController.text.isNotEmpty
+                                          ? Colors.black54
+                                          : Colors.black12,
+                                      size: 14.w),
+                                  onPressed: () {
+                                    showTagsDialog(context,
+                                            _tagsController.text.split(','))
+                                        .then((value) {
+                                      setState(() {
+                                        tags = value;
+                                      });
+                                    });
+                                  },
+                                ),
+                              ],
+                            )
+                          : null,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
       ),
     );
   }
 
-  Future<void> _selectDate(BuildContext context) async {
+  Future<String?> _selectDate(BuildContext context) async {
     DateTime? pickedDate = await showDatePicker(
       context: context,
       initialDate: selectedDate ?? DateTime.now(),
@@ -244,10 +306,19 @@ class _TaskListScreenState extends State<TaskListScreen>
       },
     );
 
+    final DateFormat formatter = DateFormat('yyyy-MM-dd');
+
     if (pickedDate != null && pickedDate != selectedDate) {
       setState(() {
+        formatter.format(pickedDate);
         selectedDate = pickedDate;
       });
+
+      _selectedDateController.text = formatter.format(pickedDate);
+
+      return formatter.format(pickedDate);
     }
+
+    return null;
   }
 }
